@@ -1,0 +1,101 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy as stats
+
+from sklearn.preprocessing import StandardScaler , MinMaxScaler , Normalizer
+
+from sklearn.model_selection import train_test_split , StratifiedKFold , cross_val_score , GridSearchCV , RandomizedSearchCV ,cross_val_predict
+from sklearn import metrics
+
+
+from sklearn.linear_model import Ridge , LinearRegression
+from sklearn.svm import SVR , LinearSVR
+from sklearn.neural_network import MLPRegressor
+import xgboost as xgb
+from sklearn.tree import DecisionTreeRegressor
+from  sklearn.ensemble import AdaBoostRegressor , RandomForestRegressor
+
+
+from warnings import filterwarnings
+filterwarnings('ignore')
+
+
+def Feature_Important(Important_rate,High_Important_rate,df):
+    
+    
+
+    ########## Parameter Before Run model ###################
+    Important_rate = Important_rate                   #####
+    High_Important_rate = High_Important_rate         #####
+  #########################################################
+  ############################################### Model #############################################################
+    models = [
+    ('Ridge',Ridge())                  ,    ('Adaboost_tree' ,  AdaBoostRegressor(base_estimator=DecisionTreeRegressor(max_depth=1)))   , 
+    ('Lr',LinearRegression(fit_intercept=True))     ,    ('Adaboost_NN', AdaBoostRegressor(base_estimator=MLPRegressor((3,),activation='relu',shuffle=False,solver='adam')))   ,
+    ('RandomForest',RandomForestRegressor(n_estimators=200,min_samples_leaf=0.1))        ,     ('XGB',xgb.XGBRegressor(objective='reg:linear'))
+          ]
+    ONLY_HIGH_IMPORTANT_SCORE_FEATURE = []
+    ONLY_IMPORTANT_SCORE_FEATURE = []
+    model_names = []
+    y = df.iloc[:,-1]
+    for model_name , model in models:
+        
+        scores_each_feature = [] 
+        feature_names = []
+        print(f'\n###########################{model_name}###########################\n')
+        for colum in df.iloc[:,:-1] :  # Target อยู่ Colum สุดท้าย
+            
+            X_train , X_test , y_train , y_test = train_test_split(df[colum],y,test_size=0.3,shuffle=False)
+            X_train = np.array(X_train).reshape(-1,1)
+            X_test = np.array(X_test).reshape(-1,1)
+            model.fit(X_train , y_train) 
+############################################ Correct the Score and Feature Names #########################################
+            scores_each_feature.append(model.score(X_test,y_test))
+            feature_names.append(colum)
+        
+        feature_score_with_target = pd.Series(scores_each_feature,index=feature_names)
+        feature_score_with_target = feature_score_with_target.sort_values()
+        print('Colum  :  Score to Target each colum\n')
+        print(feature_score_with_target)
+        print('\n')
+########### Plot Each Feature Score to Target ##############
+        feature_score_with_target.plot.barh(color='#9CFF18')
+        plt.show()
+########### Plot Important Feature ##############
+        print('\n\n Important_Feature   :\n')
+        Important_Feature = feature_score_with_target[feature_score_with_target.values > Important_rate]  #### กำหนดตรงนี้
+        if len(Important_Feature) > 0:
+            print(Important_Feature)
+            ONLY_IMPORTANT_SCORE_FEATURE.append(Important_Feature.index)
+            if len(ONLY_IMPORTANT_SCORE_FEATURE) > 0 :
+                Important_Feature.plot.barh(color='#FDD842')
+                plt.show()
+            elif len(ONLY_IMPORTANT_SCORE_FEATURE) == 0:
+                pass
+             
+        elif len(Important_Feature) == 0:
+            print('Null')
+            ONLY_IMPORTANT_SCORE_FEATURE.append(pd.Series('Null'))
+        
+########### Plot only High important Feature ##############
+        print('\n\n High Important_Feature   :\n')
+        High_Important_Feature = feature_score_with_target[feature_score_with_target.values > High_Important_rate]  #### กำหนดตรงนี้
+        if len(High_Important_Feature) > 0: 
+            
+            print(High_Important_Feature)
+            ONLY_HIGH_IMPORTANT_SCORE_FEATURE.append(High_Important_Feature.index)
+            if len(ONLY_HIGH_IMPORTANT_SCORE_FEATURE) > 0 :
+                High_Important_Feature.plot.barh(color='#FF491B')
+                plt.show()
+            elif len(ONLY_HIGH_IMPORTANT_SCORE_FEATURE) == 0:
+                pass
+        elif len(High_Important_Feature) == 0:
+            
+            print('Null')
+            ONLY_HIGH_IMPORTANT_SCORE_FEATURE.append(pd.Series('Null'))
+############################################## Sumary and Return ###########################################################
+    IMPORTANT_FEATURE = print(f'\n\n ---------------- Important Score Feature \n\n{np.array(ONLY_IMPORTANT_SCORE_FEATURE,dtype="object")}\n\n')
+    HIGH_IMPORTANT_FEATURE = print(f'\n\n ---------------- High Important Score Feature \n\n{np.array(ONLY_HIGH_IMPORTANT_SCORE_FEATURE,dtype= "object")}\n\n======================\n\n\n\n ==== Parameter Return ==== \n') 
+    return  ONLY_IMPORTANT_SCORE_FEATURE , ONLY_HIGH_IMPORTANT_SCORE_FEATURE , y
